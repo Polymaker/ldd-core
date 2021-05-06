@@ -1,0 +1,106 @@
+﻿using LDD.Core.Primitives.Collisions;
+using LDD.Core.Primitives.Connectors;
+using LDD.Common.Serialization;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Xml.Linq;
+
+namespace LDD.Core.Primitives
+{
+    public class FlexBone : IXmlObject
+    {
+        public int ID { get; set; }
+        public Transform Transform { get; set; }
+        public PhysicsAttributes PhysicsAttributes { get; set; }
+        public BoundingBox Bounding { get; set; }
+
+        /// <summary>
+        /// Bone connection information. Bones are connected by connectors (ball or fixed) of type 99900X.<br/>
+        /// Item 1: Index of the connection used from the current bone<br/>
+        /// Item 2: Target bone ID (generally the preceding ID)<br/>
+        /// Item 3: Index of the connection used in the target bone
+        /// </summary>
+        public Tuple<int,int,int> ConnectionCheck { get; set; }
+
+        public List<Connector> Connectors { get; }
+
+        public List<Collision> Collisions { get; }
+
+        public FlexBone()
+        {
+            Connectors = new List<Connectors.Connector>();
+            Collisions = new List<Collisions.Collision>();
+            Transform = new Transform();
+        }
+
+        public XElement SerializeToXml()
+        {
+            var boneElem = new XElement("Bone", new XAttribute("boneId", ID));
+
+            if (ConnectionCheck != null)
+                boneElem.Add(new XAttribute("flexCheckConnection", $"{ConnectionCheck.Item1},{ConnectionCheck.Item2},{ConnectionCheck.Item3}"));
+
+            boneElem.Add(Transform.ToXmlAttributes());
+
+            if (Collisions.Any())
+            {
+                var collisionElem = boneElem.AddElement("Collision");
+                foreach (var col in Collisions)
+                    collisionElem.Add(col.SerializeToXml());
+            }
+
+            if (Connectors.Any())
+            {
+                var connectivityElem = boneElem.AddElement("Connectivity");
+                foreach (var con in Connectors)
+                    connectivityElem.Add(con.SerializeToXml());
+            }
+
+            if (PhysicsAttributes != null)
+                boneElem.Add(PhysicsAttributes.SerializeToXml());
+
+            if (Bounding != null)
+            {
+                var boundingElem = boneElem.AddElement("Bounding");
+                boundingElem.Add(Bounding.SerializeToXml("AABB"));
+            }
+
+            return boneElem;
+        }
+
+        public void LoadFromXml(XElement element)
+        {
+            ID = element.ReadAttribute("boneId", 0);
+            Transform = Transform.FromElementAttributes(element);
+
+            if (element.HasElement("PhysicsAttributes", out XElement physicsElem))
+                PhysicsAttributes = XmlHelper.DefaultDeserialize<PhysicsAttributes>(physicsElem);
+
+            if (element.HasElement("Bounding", out XElement boundingElem) && 
+                boundingElem.HasElement("AABB"))
+            {
+                Bounding = XmlHelper.DefaultDeserialize<BoundingBox>(boundingElem.Element("AABB"));
+            }
+
+            if (element.HasAttribute("flexCheckConnection", out XAttribute checkAttr))
+            {
+                var checkValues = checkAttr.Value.Trim().Split(',');
+                if (checkValues.Length == 3)
+                    ConnectionCheck = new Tuple<int, int, int>(int.Parse(checkValues[0]), int.Parse(checkValues[1]), int.Parse(checkValues[2]));
+            }
+
+            if (element.HasElement("Collision", out XElement collisionElem))
+            {
+                foreach (var colElem in collisionElem.Elements())
+                    Collisions.Add(Collision.DeserializeCollision(colElem));
+            }
+
+            if (element.HasElement("Connectivity", out XElement connectorElem))
+            {
+                foreach (var conElem in connectorElem.Elements())
+                    Connectors.Add(Connector.DeserializeConnector(conElem));
+            }
+        }
+    }
+}
