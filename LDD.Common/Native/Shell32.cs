@@ -58,7 +58,7 @@ namespace LDD.Common.Native
             FO_RENAME = 0x0004,
         }
 
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto, Pack = 1)]
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
         public struct SHFILEOPSTRUCT
         {
 
