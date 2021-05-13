@@ -89,6 +89,20 @@ namespace LDD.Core.Parts
 
         #region Loading
 
+        public static bool PartExists(LDDEnvironment environment, int partID)
+        {
+            if (environment.DatabaseExtracted)
+            {
+                var primitivesDir = environment.GetAppDataSubDir("db\\Primitives");
+                return File.Exists(Path.Combine(primitivesDir, $"{partID}.xml"));
+            }
+            else
+            {
+                using (var lif = LifFile.Open(environment.GetLifFilePath(LddLif.DB)))
+                    return lif.GetFile($"LOD0\\{partID}.xml") != null;
+            }
+        }
+
         public static PartWrapper LoadPart(LDDEnvironment environment, int partID, bool loadMeshes)
         {
             if (environment.DatabaseExtracted)
