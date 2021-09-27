@@ -152,16 +152,20 @@ namespace System.ComponentModel
         public void RemoveAll(Func<T, bool> predicate)
         {
             BeginCollectionChanges();
-            int indexOffset = 0;
-            for (int i = 0; i < Count; i++)
+
+            for (int i = Count - 1; i >= 0; i--)
             {
                 if (predicate(base[i]))
-                {
-                    AddChange(base[i], (indexOffset++) + (i--), -1);
                     RemoveItem(i);
-                }
             }
+
             RaiseCollectionChanges();
+        }
+
+        public void RemoveRange(IEnumerable<T> items)
+        {
+            var tmpArray = items.ToArray();
+            RemoveAll(x => tmpArray.Contains(x));
         }
 
         public void AddRange(IEnumerable<T> items)

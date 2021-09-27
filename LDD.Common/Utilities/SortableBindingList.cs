@@ -182,7 +182,6 @@ namespace System.Collections.Generic
         public void SyncItems(IEnumerable<T> items)
         {
             var itemsToRemove = Items.ToList();
-
             RaiseListChangedEvents = false;
             foreach (var item in items)
             {
@@ -198,6 +197,20 @@ namespace System.Collections.Generic
                 ApplySort(PropertyDescriptor, SortDirection);
             else
                 OnListChanged(new ListChangedEventArgs(ListChangedType.Reset, -1));
+        }
+
+        public void SortItems(Func<T,int> itemOrder)
+        {
+            RaiseListChangedEvents = false;
+
+            var allItems = Items.ToList();
+            List<T> itemsList = (List<T>)this.Items;
+            itemsList.Clear();
+            itemsList.AddRange(allItems.OrderBy(x => itemOrder(x)));
+
+            RaiseListChangedEvents = true;
+
+            OnListChanged(new ListChangedEventArgs(ListChangedType.Reset, -1));
         }
 
         public void InsertRange(int index, IEnumerable<T> items)
