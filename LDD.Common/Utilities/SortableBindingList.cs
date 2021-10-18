@@ -179,6 +179,15 @@ namespace System.Collections.Generic
             }
         }
 
+        public void RemoveRange(IEnumerable<T> items)
+        {
+            RaiseListChangedEvents = false;
+            foreach (var item in items)
+                Remove(item);
+            RaiseListChangedEvents = true;
+            OnListChanged(new ListChangedEventArgs(ListChangedType.Reset, -1));
+        }
+
         public void SyncItems(IEnumerable<T> items)
         {
             var itemsToRemove = Items.ToList();
