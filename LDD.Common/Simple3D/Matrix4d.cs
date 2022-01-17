@@ -739,6 +739,11 @@ namespace LDD.Common.Simple3D
             return RowD.Xyz;
         }
 
+        public Vector3d ExtractScale()
+        {
+            return new Vector3d(RowA.Xyz.Length, RowB.Xyz.Length, RowC.Xyz.Length);
+        }
+
         public static Vector3d TransformPosition(Matrix4d mat, Vector3d pos)
         {
             Vector3d result = default;
@@ -791,6 +796,13 @@ namespace LDD.Common.Simple3D
             return TransformVector(this, pos);
         }
 
+        public static Matrix4d GetRelativeMatrix(Matrix4d parent, Matrix4d child)
+        {
+            Vector3d position = TransformPosition(parent.Inverted(), child.ExtractTranslation());
+            Quaterniond rotation = parent.ExtractRotation().Inverted() * child.ExtractRotation();
+            Vector3d scale = Vector3d.Divide(child.ExtractScale(), parent.ExtractScale());
+            return FromScale(scale) * FromQuaternion(rotation) * FromTranslation(position);
+        }
 
         #endregion
 

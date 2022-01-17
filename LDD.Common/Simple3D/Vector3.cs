@@ -448,6 +448,16 @@ namespace LDD.Common.Simple3D
             return v1 + (line1 * d);
         }
 
+        public static Vector3 Divide(Vector3 v1, Vector3 v2)
+        {
+            return new Vector3
+            {
+                X = v1.X / v2.X,
+                Y = v1.Y / v2.Y,
+                Z = v1.Z / v2.Z,
+            };
+        }
+
         //public static Vector3 IntersectTwoLines(Vector3 p1, Vector3 v1, Vector3 p2, Vector3 p3)
         //{
         //    var s = Vector3.Dot(Vector3.Cross(dc, db), Vector3.Cross(da, db)) / Norm2(Vector3.Cross(da, db));

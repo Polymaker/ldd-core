@@ -352,6 +352,16 @@ namespace LDD.Common.Simple3D
             return v1 + (line1 * d);
         }
 
+        public static Vector3d Divide(Vector3d v1, Vector3d v2)
+        {
+            return new Vector3d
+            {
+                X = v1.X / v2.X,
+                Y = v1.Y / v2.Y,
+                Z = v1.Z / v2.Z,
+            };
+        }
+
         public static Vector3d Min(Vector3d v1, Vector3d v2)
         {
             return new Vector3d(v1.X < v2.X ? v1.X : v2.X, v1.Y < v2.Y ? v1.Y : v2.Y, v1.Z < v2.Z ? v1.Z : v2.Z);

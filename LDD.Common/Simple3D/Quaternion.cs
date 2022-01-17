@@ -55,6 +55,14 @@ namespace LDD.Common.Simple3D
             Z = cr * cp * sy - sr * sp * cy;
         }
 
+        public Quaternion(Vector3 v, float w)
+        {
+            X = v.X;
+            Y = v.Y;
+            Z = v.Z;
+            W = w;
+        }
+
 
         public void Normalize()
         {
@@ -68,6 +76,27 @@ namespace LDD.Common.Simple3D
             float w = left.W * right.W - Vector3.Dot(left.Xyz, right.Xyz);
             var xyz = right.W * left.Xyz + left.W * right.Xyz + Vector3.Cross(left.Xyz, right.Xyz);
             return new Quaternion(xyz.X, xyz.Y, xyz.Z, w);
+        }
+
+        public static Quaternion Invert(Quaternion quaternion)
+        {
+            float lengthSq = quaternion.LengthSquared;
+            if ((double)lengthSq != 0.0)
+            {
+                float i = 1f / lengthSq;
+                return new Quaternion(quaternion.Xyz * (0f - i), quaternion.W * i);
+            }
+            return quaternion;
+        }
+
+        public Quaternion Inverted()
+        {
+            return Invert(this);
+        }
+
+        public void Invert()
+        {
+            this = Inverted();
         }
 
         public void ToAxisAngle(out Vector3 axis, out float angle)

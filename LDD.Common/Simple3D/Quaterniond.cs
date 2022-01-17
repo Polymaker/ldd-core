@@ -55,6 +55,14 @@ namespace LDD.Common.Simple3D
             Z = num * num5 * num3 - num4 * num2 * num6;
         }
 
+        public Quaterniond(Vector3d v, double w)
+        {
+            X = v.X;
+            Y = v.Y;
+            Z = v.Z;
+            W = w;
+        }
+
         public void Normalize()
         {
             double scale = 1d / Length;
@@ -67,6 +75,27 @@ namespace LDD.Common.Simple3D
             double w = left.W * right.W - Vector3d.Dot(left.Xyz, right.Xyz);
             var xyz = right.W * left.Xyz + left.W * right.Xyz + Vector3d.Cross(left.Xyz, right.Xyz);
             return new Quaterniond(xyz.X, xyz.Y, xyz.Z, w);
+        }
+
+        public static Quaterniond Invert(Quaterniond quaternion)
+        {
+            double lengthSq = quaternion.LengthSquared;
+            if ((double)lengthSq != 0.0)
+            {
+                double i = 1d / lengthSq;
+                return new Quaterniond(quaternion.Xyz * (0d - i), quaternion.W * i);
+            }
+            return quaternion;
+        }
+
+        public Quaterniond Inverted()
+        {
+            return Invert(this);
+        }
+
+        public void Invert()
+        {
+            this = Inverted();
         }
 
         public void ToAxisAngle(out Vector3d axis, out double angle)
@@ -155,6 +184,11 @@ namespace LDD.Common.Simple3D
             pitchYawRoll.Z = (double)Math.Atan2(2 * quat.X * quat.W - 2 * quat.Y * quat.Z, -sqx + sqy - sqz + sqw);      // Roll
 
             return pitchYawRoll;
+        }
+
+        public Vector3d ToEuler()
+        {
+            return ToEuler(this);
         }
 
         public override string ToString()

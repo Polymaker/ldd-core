@@ -47,4 +47,5 @@ namespace LDD.Common.Simple3D
             return p2.Normalized();
         }
     }
+
 }
