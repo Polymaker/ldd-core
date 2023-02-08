@@ -10,10 +10,15 @@ using LDD.Common.Maths;
 
 namespace LDD.Core.Meshes
 {
-    public static class OutlinesGenerator
+    public class OutlinesGenerator
     {
         public const float fPI = (float)Math.PI;
-        public const float LineThickness = 0.013f;
+        public const float DEFAULT_LINE_THICKNESS = 0.013f;
+
+        public float AngleThreshold { get; set; }
+        public float ThicknessMultiplier { get; set; }
+
+        public float OutlineThickness => DEFAULT_LINE_THICKNESS * ThicknessMultiplier;
 
         public struct SimpleEdge : IEquatable<SimpleEdge>
         {
@@ -293,30 +298,6 @@ namespace LDD.Core.Meshes
                 return float.IsNaN(angleDiff) || angleDiff < 0.08;
             }
 
-            public ProjectedEdge ProjectTriangle(Triangle triangle, Vector3 vertex)
-            {
-                var plane = new Plane(vertex, triangle.Normal);
-
-                var edgeP1 = plane.ProjectPoint2D(Direction, P1);
-                var edgeP2 = plane.ProjectPoint2D(Direction, P2);
-
-                var edge = new ProjectedEdge()
-                {
-                    PlanarEdge = this,
-                    TargetVertex = vertex,
-                    P1 = plane.ProjectPoint2D(Direction, triangle.V1.Position),
-                    P2 = plane.ProjectPoint2D(Direction, triangle.V2.Position),
-                    P3 = plane.ProjectPoint2D(Direction, triangle.V3.Position),
-                    MinX = Math.Min(edgeP1.X, edgeP2.X),
-                    MaxX = Math.Max(edgeP1.X, edgeP2.X),
-                };
-
-                if (OrigEdge != null)//prevents errors from temp objects
-                    edge.ValidateValues();
-
-                return edge;
-            }
-
             public bool IsVertexLinked(Vector3 vertex)
             {
                 if (P1.Equals(vertex))
@@ -477,15 +458,15 @@ namespace LDD.Core.Meshes
 
             public ProjectedEdge CombineWith { get; set; }
 
-            public void ValidateValues()
+            public void ValidateValues(float outlineThickness)
             {
                 var minPos = Vector2.Min(P1, P2, P3);
                 var maxPos = Vector2.Max(P1, P2, P3);
 
-                if (minPos.Y < 0 && Math.Abs(minPos.Y) > LineThickness)
+                if (minPos.Y < 0 && Math.Abs(minPos.Y) > outlineThickness)
                     NeedsToBeClipped = true;
 
-                if (maxPos.Y < LineThickness && (maxPos.Y - minPos.Y) > LineThickness)
+                if (maxPos.Y < outlineThickness && (maxPos.Y - minPos.Y) > outlineThickness)
                     IsOutsideTriangle = true;
 
                 //Dead End
@@ -497,7 +478,7 @@ namespace LDD.Core.Meshes
                 }
             }
 
-            public void AdjustValues()
+            public void AdjustValues(float thicknessMultiplier = 1f)
             {
                 var minPos = Vector2.Min(P1, P2, P3);
 
@@ -505,6 +486,8 @@ namespace LDD.Core.Meshes
                 {
                     var pt = UVs[i];
                     pt.X -= minPos.X;
+                    pt.X /= thicknessMultiplier;
+                    pt.Y /= thicknessMultiplier;
                     switch (i)
                     {
                         case 0:
@@ -680,6 +663,20 @@ namespace LDD.Core.Meshes
             }
         }
 
+        public OutlinesGenerator()
+        {
+            AngleThreshold = 35f;
+            ThicknessMultiplier = 1f;
+        }
+
+        public OutlinesGenerator(float angleThreshold, float thicknessMultiplier)
+        {
+            AngleThreshold = angleThreshold;
+            ThicknessMultiplier = thicknessMultiplier;
+        }
+
+
+
         //public class GenerationTracker
         //{
         //    public Triangle CurrentTriangle { get; set; }
@@ -697,15 +694,15 @@ namespace LDD.Core.Meshes
             return simpleEdges;
         }
 
-        public static void GenerateOutlines(IEnumerable<Triangle> triangles, float breakAngle)
+        public void GenerateOutlines(IEnumerable<Triangle> triangles)
         {
-            float breakAngleRad = breakAngle / 180f * fPI;
+            float breakAngleRad = AngleThreshold / 180f * fPI;
 
             var triangleList = triangles.ToList();
 
             var sw = Stopwatch.StartNew();
             var hardEdgeDict = new HardEdgeDictionary();
-            hardEdgeDict.Initialize(triangleList, breakAngle);
+            hardEdgeDict.Initialize(triangleList, AngleThreshold);
             sw.Stop();
             Console.WriteLine($"Calculate Hard Edges => {sw.Elapsed}");
 
@@ -742,7 +739,7 @@ namespace LDD.Core.Meshes
                         }
                     }
 
-                    var projections = edgesConnectedToVertex.Select(x => x.ProjectTriangle(triangle, vert.Position)).ToList();
+                    var projections = edgesConnectedToVertex.Select(x => ProjectTriangle(x, triangle, vert.Position)).ToList();
 
                     projections.RemoveAll(p => p.IsOutsideTriangle);
 
@@ -845,7 +842,7 @@ namespace LDD.Core.Meshes
         /// </summary>
         /// <param name="face"></param>
         /// <param name="hardEdgeDict"></param>
-        private static List<PlanarEdge> CalculatePlanarEdges(Triangle face, HardEdgeDictionary hardEdgeDict)
+        List<PlanarEdge> CalculatePlanarEdges(Triangle face, HardEdgeDictionary hardEdgeDict)
         {
             var facePlane = new Plane(face.GetCenter(), face.Normal);
 
@@ -888,8 +885,8 @@ namespace LDD.Core.Meshes
             LineSegment2D CreateOutlineLine(PlanarEdge edge, Vector3 sharedPt, Vector3 axis)
             {
                 var oppPt = edge.GetOppositeVertex(sharedPt);
-                var p1 = sharedPt + edge.OutlineDirection * LineThickness;
-                var p2 = oppPt + edge.OutlineDirection * LineThickness;
+                var p1 = sharedPt + edge.OutlineDirection * OutlineThickness;
+                var p2 = oppPt + edge.OutlineDirection * OutlineThickness;
                 var p1_2d = facePlane.ProjectPoint2D(axis, p1);
                 var p2_2d = facePlane.ProjectPoint2D(axis, p2);
                 return new LineSegment2D(p1_2d, p2_2d);
@@ -964,7 +961,31 @@ namespace LDD.Core.Meshes
             return planarEdges;
         }
 
-        static ProjectedEdge CreateClippingEdge(ProjectedEdge baseEdge, Vector3 edgeEnd, Plane facePlane)
+        ProjectedEdge ProjectTriangle(PlanarEdge planarEdge, Triangle triangle, Vector3 vertex)
+        {
+            var plane = new Plane(vertex, triangle.Normal);
+
+            var edgeP1 = plane.ProjectPoint2D(planarEdge.Direction, planarEdge.P1);
+            var edgeP2 = plane.ProjectPoint2D(planarEdge.Direction, planarEdge.P2);
+
+            var edge = new ProjectedEdge()
+            {
+                PlanarEdge = planarEdge,
+                TargetVertex = vertex,
+                P1 = plane.ProjectPoint2D(planarEdge.Direction, triangle.V1.Position),
+                P2 = plane.ProjectPoint2D(planarEdge.Direction, triangle.V2.Position),
+                P3 = plane.ProjectPoint2D(planarEdge.Direction, triangle.V3.Position),
+                MinX = Math.Min(edgeP1.X, edgeP2.X),
+                MaxX = Math.Max(edgeP1.X, edgeP2.X),
+            };
+
+            if (planarEdge.OrigEdge != null)//prevents errors from temp objects
+                edge.ValidateValues(OutlineThickness);
+
+            return edge;
+        }
+
+        ProjectedEdge CreateClippingEdge(ProjectedEdge baseEdge, Vector3 edgeEnd, Plane facePlane)
         {
             var triangle = baseEdge.PlanarEdge.Face;
             var oppVert = baseEdge.PlanarEdge.GetOppositeVertex(edgeEnd);
@@ -978,7 +999,7 @@ namespace LDD.Core.Meshes
 
             interEdge.CorrectOrder();
             var planarEndEdge = new PlanarEdge(interEdge, triangle, facePlane);
-            var interProjected = planarEndEdge.ProjectTriangle(triangle, edgeEnd);
+            var interProjected = ProjectTriangle(planarEndEdge, triangle, edgeEnd);
             interProjected.NeedsToBeClipped = true;
 
             baseEdge.CombineWith = interProjected;
@@ -987,7 +1008,7 @@ namespace LDD.Core.Meshes
             return interProjected;
         }
 
-        static void SetOutlineCoords(Triangle triangle, int coordIdx, ProjectedEdge e1, ProjectedEdge e2)
+        void SetOutlineCoords(Triangle triangle, int coordIdx, ProjectedEdge e1, ProjectedEdge e2)
         {
             var mode = (e1.NeedsToBeClipped || (e2?.NeedsToBeClipped ?? false)) ?
                 RoundEdgeData.EdgeCombineMode.Intersection : RoundEdgeData.EdgeCombineMode.Union;
@@ -996,9 +1017,10 @@ namespace LDD.Core.Meshes
             //if (e2 == null && mode == RoundEdgeData.EdgeCombineMode.Union)
             //    mode = RoundEdgeData.EdgeCombineMode.Intersection;
 
-            e1.AdjustValues();
+            e1.AdjustValues(ThicknessMultiplier);
+
             if (e2 != null)
-                e2.AdjustValues();
+                e2.AdjustValues(ThicknessMultiplier);
 
             for (int i = 0; i < 3; i++)
             {

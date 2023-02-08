@@ -67,8 +67,8 @@ namespace LDD.Core.Parts
 
         public void ComputeEdgeOutlines(float breakAngle = 35f)
         {
-            OutlinesGenerator.GenerateOutlines(AllMeshes.SelectMany(x => x.Triangles), breakAngle);
-            //ShaderDataGenerator.ComputeEdgeOutlines(AllMeshes.SelectMany(x => x.Triangles), breakAngle);
+            var generator = new OutlinesGenerator(breakAngle, 1f);
+            generator.GenerateOutlines(AllMeshes.SelectMany(x => x.Triangles));
         }
 
         public void ClearEdgeOutlines()
